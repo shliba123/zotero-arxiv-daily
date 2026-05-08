@@ -103,6 +103,62 @@ class Paper:
             logger.warning(f"Failed to generate affiliations of {self.url}: {e}")
             self.affiliations = None
             return None
+
+    @staticmethod
+    def generate_literature_review(papers: list['Paper'], openai_client:OpenAI, llm_params:dict) -> str:
+        """Generate Chinese literature review based on top papers"""
+        if not papers:
+            return ""
+
+        # Prepare paper data for the review
+        paper_data = []
+        for i, p in enumerate(papers, 1):
+            paper_info = f"""
+{i}. Title: {p.title}
+   Abstract: {p.abstract}
+   TLDR: {p.tldr}
+"""
+            paper_data.append(paper_info)
+
+        papers_text = "\n".join(paper_data)
+
+        prompt = f"""Based on the following {len(papers)} recommended papers, generate a comprehensive Chinese literature review with the following structure:
+
+1. Research Theme Clustering: Group the papers into main research themes
+2. Common Trends: Identify common research trends and directions
+3. Key Methods: Summarize the key methods and techniques used
+4. Potential Limitations: Point out potential limitations or areas for improvement
+
+Each section should be concise but informative. Use academic Chinese writing style.
+
+Papers:
+{papers_text}
+
+Literature Review:"""
+
+        try:
+            # use gpt-4o tokenizer for estimation
+            enc = tiktoken.encoding_for_model("gpt-4o")
+            prompt_tokens = enc.encode(prompt)
+            prompt_tokens = prompt_tokens[:4000]  # truncate to 4000 tokens
+            prompt = enc.decode(prompt_tokens)
+
+            response = openai_client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert academic researcher who specializes in literature review generation. Generate a comprehensive, well-structured literature review in Chinese based on the given papers. Your review should be insightful and identify key research themes, trends, methods, and limitations.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                **llm_params.get('generation_kwargs', {})
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.warning(f"Failed to generate literature review: {e}")
+            return "文献综述生成失败，请稍后查看。"
 @dataclass
 class CorpusPaper:
     title: str

@@ -104,7 +104,27 @@ def get_stars(score:float):
         return '<div class="star-wrapper">'+full_star * full_star_num + half_star * half_star_num + '</div>'
 
 
-def render_email(papers:list[Paper]) -> str:
+def get_literature_review_html(review_content: str) -> str:
+    if not review_content:
+        return ""
+
+    review_template = """
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f0f8ff; margin-bottom: 20px;">
+    <tr>
+        <td style="font-size: 22px; font-weight: bold; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+            📚 今日文献综述
+        </td>
+    </tr>
+    <tr>
+        <td style="font-size: 16px; color: #34495e; line-height: 1.6; padding: 15px 0;">
+            {review_content}
+        </td>
+    </tr>
+    </table>
+    """
+    return review_template.format(review_content=review_content)
+
+def render_email(papers:list[Paper], literature_review:str = "") -> str:
     parts = []
     if len(papers) == 0 :
         return framework.replace('__CONTENT__', get_empty_html())
@@ -127,5 +147,17 @@ def render_email(papers:list[Paper]) -> str:
             affiliations = 'Unknown Affiliation'
         parts.append(get_block_html(p.title, authors, rate, p.tldr, p.pdf_url, affiliations))
 
-    content = '<br>' + '</br><br>'.join(parts) + '</br>'
+    # Generate final content with literature review at the top
+    content_parts = []
+
+    # Add literature review if available
+    if literature_review:
+        content_parts.append(get_literature_review_html(literature_review))
+
+    # Add papers
+    if parts:
+        papers_content = '<br>' + '</br><br>'.join(parts) + '</br>'
+        content_parts.append(papers_content)
+
+    content = '\n'.join(content_parts)
     return framework.replace('__CONTENT__', content)
